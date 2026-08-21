@@ -39,6 +39,9 @@ export function mergedProviderEnv(
   if (cfg?.openrouter_api_key) fromConfig.OPENROUTER_API_KEY = cfg.openrouter_api_key;
   if (cfg?.voyage_api_key) fromConfig.VOYAGE_API_KEY = cfg.voyage_api_key;
   if (cfg?.dashscope_api_key) fromConfig.DASHSCOPE_API_KEY = cfg.dashscope_api_key;
+  // LOCAL PATCH (Việt): file-plane key for the litellm recipe (CLIProxy) so dream/
+  // MCP/cron contexts work without a process-env export (same pattern as voyage).
+  if ((cfg as any)?.litellm_api_key) fromConfig.LITELLM_API_KEY = (cfg as any).litellm_api_key;
   if (cfg?.google_api_key) fromConfig.GOOGLE_GENERATIVE_AI_API_KEY = cfg.google_api_key;
   // #4031: the Azure key was the only member of the group below left unfolded,
   // so a config.json-only setup failed every embed from keyless shells
