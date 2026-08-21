@@ -119,6 +119,7 @@ export const CANONICAL_PRICING: Record<string, ModelPricing> = {
   // configured chat model resolves under --max-cost instead of TX2 no_pricing
   // hard-failing. Re-apply after `git pull` (see memory gbrain-upgrade-from-source).
   'deepseek:gpt-5.5':                     { input:  4.00, output: 16.00 },
+  'litellm:gpt-5.5':                      { input:  4.00, output: 16.00 },
   // gpt-5.6 family (GA 2026-07-09; rates cross-checked 2026-08-17 across
   // aggregator trackers — re-verify against platform.openai.com/pricing at
   // next release). The bare `gpt-5.6` id is OpenAI's rolling alias for the
