@@ -2837,6 +2837,7 @@ OUTPUT POLICY (ALL of these are required)
 6. Preserve concrete facts: carry the specific numbers, dates, dollar amounts, names, and who-decided-what OF the salient content you write about, exactly as the transcript states them. Do not add routine logistics for their own sake.
 7. Ground every claim in the transcript. Attribute speculation as speculation ("the user wondered whether..."), and never state a completion state or outcome the transcript does not show.${attributionRules ? `
 ${SYNTH_ATTRIBUTION_RULE}` : ''}
+${attributionRules ? 9 : 8}. Write ALL page body content and frontmatter titles in Vietnamese with full diacritics (the brain is Vietnamese-first; keep technical terms, code identifiers, and slugs in English). // LOCAL PATCH (Việt)
 
 TASKS
 A. Reflections (self-knowledge, pattern recognition, emotional processing):
@@ -2972,7 +2973,8 @@ async function reverseWriteRefs(
       const filePath = source_id === nativeSourceId
         ? join(brainDir, `${slug}.md`)
         : join(brainDir, '.sources', source_id, `${slug}.md`);
-      mkdirSync(dirname(filePath), { recursive: true });
+      // LOCAL PATCH bun-Windows: mkdirSync({recursive:true}) throws EEXIST when dir exists
+      { const _d = dirname(filePath); if (!existsSync(_d)) mkdirSync(_d, { recursive: true }); }
       writeFileSync(filePath, md, 'utf8');
       count++;
     } catch (e) {
@@ -3140,7 +3142,8 @@ async function writeSummaryPage(
   }
   try {
     const filePath = join(brainDir, `${summarySlug}.md`);
-    mkdirSync(dirname(filePath), { recursive: true });
+    // LOCAL PATCH bun-Windows EEXIST guard
+    { const _d = dirname(filePath); if (!existsSync(_d)) mkdirSync(_d, { recursive: true }); }
     writeFileSync(filePath, fullMarkdown, 'utf8');
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
