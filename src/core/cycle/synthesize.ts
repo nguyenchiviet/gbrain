@@ -2380,6 +2380,7 @@ OUTPUT POLICY (ALL of these are required)
 3. Do NOT write to any path outside the ALLOWED WRITE PATHS above${allowedSlugPrefixes.length > 0 ? '' : ' (shown in the put_page schema)'}.
 4. Slug discipline: lowercase alphanumeric and hyphens only, slash-separated segments. NO underscores, NO file extensions.
 5. Self-contained opening: begin every new page's body with a 2-3 sentence summary that a reader unfamiliar with this transcript could understand on its own, before any quotes or detail. Do not assume the reader has the source conversation for context.
+6. Write ALL page body content and frontmatter titles in Vietnamese with full diacritics (the brain is Vietnamese-first; keep technical terms, code identifiers, and slugs in English). // LOCAL PATCH (Việt)
 
 TASKS
 A. Reflections (self-knowledge, pattern recognition, emotional processing):
@@ -2611,7 +2612,8 @@ async function reverseWriteRefs(
       const filePath = source_id === nativeSourceId
         ? join(brainDir, `${slug}.md`)
         : join(brainDir, '.sources', source_id, `${slug}.md`);
-      mkdirSync(dirname(filePath), { recursive: true });
+      // LOCAL PATCH bun-Windows: mkdirSync({recursive:true}) throws EEXIST when dir exists
+      { const _d = dirname(filePath); if (!existsSync(_d)) mkdirSync(_d, { recursive: true }); }
       writeFileSync(filePath, md, 'utf8');
       count++;
     } catch (e) {
@@ -2738,7 +2740,8 @@ async function writeSummaryPage(
   }
   try {
     const filePath = join(brainDir, `${summarySlug}.md`);
-    mkdirSync(dirname(filePath), { recursive: true });
+    // LOCAL PATCH bun-Windows EEXIST guard
+    { const _d = dirname(filePath); if (!existsSync(_d)) mkdirSync(_d, { recursive: true }); }
     writeFileSync(filePath, fullMarkdown, 'utf8');
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

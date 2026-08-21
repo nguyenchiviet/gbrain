@@ -114,6 +114,11 @@ export const CANONICAL_PRICING: Record<string, ModelPricing> = {
   // slot A from the --max-usd pre-flight and est_cost_usd audit rows.
   'openai:gpt-5.2':                       { input:  1.25, output: 10.00 },
   'openai:gpt-5.5':                       { input:  4.00, output: 16.00 },
+  // Local patch (Việt): the `deepseek:` recipe routes to gpt-5.5 via a ChatGPT
+  // Plus OAuth seat on CLIProxy. Price it at OpenAI gpt-5.5 ($4/$16) so the
+  // configured chat model resolves under --max-cost instead of TX2 no_pricing
+  // hard-failing. Re-apply after `git pull` (see memory gbrain-upgrade-from-source).
+  'deepseek:gpt-5.5':                     { input:  4.00, output: 16.00 },
   // gpt-5.6 family (GA 2026-07-09; rates cross-checked 2026-08-17 across
   // aggregator trackers — re-verify against platform.openai.com/pricing at
   // next release). The bare `gpt-5.6` id is OpenAI's rolling alias for the
