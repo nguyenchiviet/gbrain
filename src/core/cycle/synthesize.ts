@@ -49,7 +49,7 @@ import { assertUnmanagedCanonicalWriter } from '../persistence/maintenance.ts';
  */
 
 import type Anthropic from '@anthropic-ai/sdk';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { chat as gatewayChat, validateModelId, type ChatResult } from '../ai/gateway.ts';
 import { AIConfigError } from '../ai/errors.ts';
