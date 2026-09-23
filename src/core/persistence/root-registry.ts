@@ -91,7 +91,7 @@ export function canonicalFilesystemPath(path: string): string {
 export function recordManagedRoots(brainId: string, records: ManagedRootRecord[]): void {
   if (!/^[a-f0-9-]{36}$/i.test(brainId)) throw new OperationError('storage_error', 'Invalid managed-root brain identity.');
   if (!records.length) return;
-  const directory = registryDirectory(); mkdirSync(directory, { recursive: true, mode: 0o700 }); chmodSync(directory, 0o700);
+  const directory = registryDirectory(); (existsSync(directory) || mkdirSync(directory, { recursive: true, mode: 0o700 })); chmodSync(directory, 0o700);  // LOCAL PATCH bun-Windows EEXIST
   for (const record of records) {
     const root = canonicalFilesystemPath(record.local_path);
     const key = createHash('sha256').update(root).digest('hex');

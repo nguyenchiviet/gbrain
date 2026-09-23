@@ -50,7 +50,7 @@ export async function cloneTopologyCheckout(url:string,destination:string,maxByt
   parseRemoteUrl(url);
   if(!existsSync(destination)||!lstatSync(destination).isDirectory()||lstatSync(destination).isSymbolicLink()||readdirSync(destination).length)
     throw new OperationError('recovery_required','The reserved clone staging directory must remain empty before cloning.');
-  const base=join(persistenceHome(),'empty-hooks');mkdirSync(base,{recursive:true,mode:0o700});
+  const base=join(persistenceHome(),'empty-hooks');(existsSync(base) || mkdirSync(base,{recursive:true,mode:0o700}));  // LOCAL PATCH bun-Windows EEXIST
   const hooks=mkdtempSync(join(base,'clone-'));
   const child=spawn('git',[...durableSsrfFlags(),'-c',`core.hooksPath=${hooks}`, 'clone',...GIT_SSRF_SUBCOMMAND_FLAGS,'--depth=1','--',url,destination],
     {stdio:['ignore','ignore','ignore'],detached:process.platform!=='win32',env:{...process.env,...GIT_ENV}});

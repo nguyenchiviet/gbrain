@@ -34,7 +34,7 @@ function flushRegistrationDirectory(): void {
 /** Exclusive create keeps simultaneous installations on one identity without replacing it. */
 function privateJson<T>(path: string, create: () => T): T {
   if (existsSync(path)) return JSON.parse(readFileSync(path, 'utf8')) as T;
-  mkdirSync(persistenceHome(), { recursive: true, mode: 0o700 });
+  (existsSync(persistenceHome()) || mkdirSync(persistenceHome(), { recursive: true, mode: 0o700 }));  // LOCAL PATCH bun-Windows EEXIST
   const temporary = `${path}.${randomUUID()}.tmp`;
   const fd = openSync(temporary, 'wx', 0o600);
   try {

@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { isDurabilityHardened } from '../brain-repo-durability.ts';
 import { OperationError } from '../ops/contract.ts';
@@ -21,7 +21,7 @@ function git(root: string, hooks: string, args: string[], signal?: AbortSignal):
 export async function publishGitEffect(root: string, relativePath: string, signal?: AbortSignal): Promise<Record<string, unknown>> {
   if (!isDurabilityHardened(root)) return { git: 'skipped', reason: 'durability_not_enabled', push: 'skipped' };
   const base = join(persistenceHome(), 'empty-hooks');
-  mkdirSync(base, { recursive: true, mode: 0o700 });
+  (existsSync(base) || mkdirSync(base, { recursive: true, mode: 0o700 }));  // LOCAL PATCH bun-Windows EEXIST
   const hooks = mkdtempSync(join(base, 'effect-'));
   try {
     const tracked = await git(root, hooks, ['ls-files', '--error-unmatch', '--', relativePath], signal);

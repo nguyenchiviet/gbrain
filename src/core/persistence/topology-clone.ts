@@ -111,7 +111,7 @@ export async function runManagedSourceClone(engine:BrainEngine,input:SourceLifec
       const recovery=admission.recovery as unknown as TopologyCloneRecovery;
       await hooks.boundary?.('reserved');
       await withFilesystemPublication([target,recovery.stage,recovery.aside],async()=>{
-        mkdirSync(dirname(target),{recursive:true});flushTopologyDirectory(dirname(target));
+        (existsSync(dirname(target)) || mkdirSync(dirname(target),{recursive:true}));flushTopologyDirectory(dirname(target));  // LOCAL PATCH bun-Windows EEXIST
         await topologyTransaction(engine,async tx=>{
           await tx.executeRaw("SELECT set_config('synchronous_commit','on',true)");
           await reservePhysicalRoot(tx,target,{hostId:localHostId(),worktreeId,coordinationPath:coordination!});

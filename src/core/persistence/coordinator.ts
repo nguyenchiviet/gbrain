@@ -48,7 +48,7 @@ function flushDirectory(path: string): void {
 }
 function publishFile(file: NonNullable<PreparedMutation['file']>, stagingPath?: string, afterStagingFlush?: () => void): void {
   if (!isWriteTargetContained(file.path, file.root)) throw new OperationError('storage_error', 'Canonical file target escapes its source root.');
-  mkdirSync(dirname(file.path), { recursive: true });
+  (existsSync(dirname(file.path)) || mkdirSync(dirname(file.path), { recursive: true }));  // LOCAL PATCH bun-Windows EEXIST
   if (!isWriteTargetContained(file.path, file.root)) throw new OperationError('storage_error', 'Canonical parent path changed during publication.');
   if (file.content === null) {
     try { unlinkSync(file.path); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
