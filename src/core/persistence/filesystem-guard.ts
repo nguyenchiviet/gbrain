@@ -8,6 +8,10 @@ import { canonicalFilesystemPath, hasManagedRootMarker, recordManagedRoots, regi
 interface FileCapability { roots: string[]; active: boolean; }
 const active = new AsyncLocalStorage<FileCapability>();
 const managedRoots = new Map<string, Set<string>>();
+// LOCAL PATCH (Việt): managed enforcement chỉ khi brain ĐÃ activate (persistence_brain.enabled=true).
+// Single-host Postgres brain: claim owner (để put_page có coordinator) nhưng KHÔNG activate vì 0.51/0.52
+// chưa chuyển dream/enrich/import sang managed → legacy sync/dream phải tiếp tục ghi được.
+let brainEnabled: boolean | null = null;
 const datastorePaths = new WeakMap<SqlEngine, string>();
 export function managedFilesystemDatastorePath(engine: SqlEngine): string | undefined { return datastorePaths.get(engine); }
 /** Record the selected engine path, never a guessed default from ambient config. */
@@ -24,6 +28,7 @@ function encloses(root: string, path: string): boolean {
 export async function refreshManagedFilesystemRoots(engine: SqlEngine, databasePath = datastorePaths.get(engine)): Promise<void> {
   const [brain] = await engine.executeRaw<{ brain_id: string; enabled: boolean }>('SELECT brain_id,enabled FROM persistence_brain WHERE singleton=1');
   if (!brain) return;
+  brainEnabled = brain.enabled === true; // LOCAL PATCH
   const roots = brain.enabled ? await engine.executeRaw<ManagedRootRecord>(`SELECT DISTINCT ON (local_path) * FROM (
       SELECT h.local_path,s.source_id,s.source_incarnation,s.worktree_id,s.topology_generation
       FROM persistence_host_bindings h JOIN persistence_source_bindings s ON s.worktree_id=h.worktree_id WHERE h.host_id=$1::uuid
@@ -38,6 +43,7 @@ export function hasFilesystemPublication(path: string): boolean {
   return held?.active === true && held.roots.some(root => encloses(root, path));
 }
 export function assertManagedFilesystemWrite(path: string): void {
+  if (brainEnabled !== true) return; // LOCAL PATCH: chưa activate → legacy writer được phép
   const managed = hasManagedRootMarker(path) || registeredManagedRoots().some(root => encloses(root, path) || encloses(path, root))
     || [...managedRoots.values()].some(roots => [...roots].some(root => encloses(root, path) || encloses(path, root)));
   if (managed && !hasFilesystemPublication(path)) throw new OperationError('writer_coordinator_required',
