@@ -189,7 +189,7 @@ async function stageTarget(session: GitSession, relativePath: string): Promise<{
 async function withSession<T>(root: string, signal: AbortSignal | undefined, owner: GitEffectOwner | undefined, scaled: boolean,
   work: (session: GitSession) => Promise<T>): Promise<T> {
   const base = join(persistenceHome(), 'empty-hooks');
-  mkdirSync(base, { recursive: true, mode: 0o700 });
+  (existsSync(base) || mkdirSync(base, { recursive: true, mode: 0o700 }));  // LOCAL PATCH bun-Windows EEXIST
   const hooks = mkdtempSync(join(base, 'effect-'));
   try {
     const session: GitSession = { root, hooks, signal, owner, timeoutMs: GIT_STEP_TIMEOUT_MS };
