@@ -550,7 +550,7 @@ function keepReceipts(workDir: string, now: Date): Partial<QualityProbeAuditEven
     if (files.length === 0) return {};
     const root = path.join(resolveAuditDir(), RECEIPTS_DIR);
     const dir = path.join(root, now.toISOString().replace(/[:.]/g, '-'));
-    fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });  // LOCAL PATCH bun-Windows EEXIST
     for (const f of files) fs.copyFileSync(path.join(workDir, f), path.join(dir, f));
     const kept = fs.readdirSync(root).sort();
     for (const old of kept.slice(0, Math.max(0, kept.length - RECEIPTS_KEPT))) {

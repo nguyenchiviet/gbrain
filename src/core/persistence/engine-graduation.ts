@@ -224,7 +224,7 @@ export function readGraduationManifest(path = graduationManifestPath()): Graduat
 
 /** Atomic write + fsync, mode 0600 (it holds the full target URLs). */
 export function writeGraduationManifest(manifest: GraduationManifest, path = graduationManifestPath()): void {
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  (existsSync(dirname(path)) || mkdirSync(dirname(path), { recursive: true, mode: 0o700 }));  // LOCAL PATCH bun-Windows EEXIST
   writeFileDurably(path, `${JSON.stringify(manifest, null, 2)}\n`);
 }
 

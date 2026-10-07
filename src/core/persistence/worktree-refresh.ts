@@ -17,7 +17,7 @@
  * refreshing process for its whole run, so recovery never touches the row of a
  * live refresh: holding that native lock proves the previous process exited.
  */
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { BrainEngine } from '../engine.ts';
 import type { SyncResult } from '../../commands/sync.ts';
@@ -77,7 +77,7 @@ const q = (value: string) => /^[A-Za-z0-9_./:@%+=,-]+$/.test(value) ? value : `'
 /** Hardened git: no prompts, no user hooks, untranslated output, bounded. */
 async function withGit<T>(run: (git: (args: string[], timeoutMs?: number) => Promise<{ stdout: string; stderr: string; code: number; timedOut: boolean }>) => Promise<T>): Promise<T> {
   const base = join(persistenceHome(), 'empty-hooks');
-  mkdirSync(base, { recursive: true, mode: 0o700 });
+  (existsSync(base) || mkdirSync(base, { recursive: true, mode: 0o700 }));  // LOCAL PATCH bun-Windows EEXIST
   const hooks = mkdtempSync(join(base, 'refresh-'));
   try {
     return await run(async (args, timeoutMs = 30_000) => {

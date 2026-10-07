@@ -119,7 +119,7 @@ async function stageTarget(root: string, hooks: string, relativePath: string, si
 
 function withHooks<T>(run: (hooks: string) => Promise<T>): Promise<T> {
   const base = join(persistenceHome(), 'empty-hooks');
-  mkdirSync(base, { recursive: true, mode: 0o700 });
+  (existsSync(base) || mkdirSync(base, { recursive: true, mode: 0o700 }));  // LOCAL PATCH bun-Windows EEXIST
   const hooks = mkdtempSync(join(base, 'effect-'));
   return run(hooks).finally(() => rmSync(hooks, { recursive: true, force: true }));
 }

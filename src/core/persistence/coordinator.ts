@@ -99,7 +99,7 @@ function publishFile(file: PageMutationFile, stagingPath?: string, afterStagingF
   if (!isWriteTargetContained(file.path, file.root)) throw opError('storage_error', 'Canonical file target escapes its source root.',
     `The file path resolves outside its source's canonical root (a symlinked directory or a moved checkout), so the file was not written. ${confinementCheck}`,
     { fix: ownerStatusFix() });
-  if (file.publishMode === undefined) mkdirSync(dirname(file.path), { recursive: true });
+  if (file.publishMode === undefined) (existsSync(dirname(file.path)) || mkdirSync(dirname(file.path), { recursive: true }));  // LOCAL PATCH bun-Windows EEXIST
   else mkdirPrivate(dirname(file.path), file.root);
   if (!isWriteTargetContained(file.path, file.root)) throw opError('storage_error', 'Canonical parent path changed during publication.',
     `A directory on the file's path was replaced (for example by a symlink) while gbrain created it, so the file was not written. ${confinementCheck}`,

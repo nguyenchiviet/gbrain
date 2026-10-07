@@ -107,7 +107,7 @@ export function recordManagedRoots(brainId: string, records: ManagedRootRecord[]
       'The managed-root registry was given a brain identity that is not a UUID, so nothing was recorded. This is an internal fault: run gbrain doctor --json and report it to the user.');
   }
   if (!records.length) return;
-  const directory = registryDirectory(); mkdirSync(directory, { recursive: true, mode: 0o700 }); ensureMode(directory, 0o700);
+  const directory = registryDirectory(); (existsSync(directory) || mkdirSync(directory, { recursive: true, mode: 0o700 })); ensureMode(directory, 0o700);  // LOCAL PATCH bun-Windows EEXIST
   let changed = false;
   for (const record of records) {
     const root = canonicalFilesystemPath(record.local_path);
