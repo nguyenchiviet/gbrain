@@ -52,7 +52,7 @@ import { deferPublishOrThrow, finishDeferredPostprocess, loadCommittedOutputsOrD
  */
 
 import type Anthropic from '@anthropic-ai/sdk';
-import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { chat as gatewayChat, validateModelId, type ChatResult } from '../ai/gateway.ts';
 import { AIConfigError } from '../ai/errors.ts';
@@ -3003,8 +3003,7 @@ async function reverseWriteRefs(
       const filePath = source_id === nativeSourceId
         ? join(brainDir, `${slug}.md`)
         : join(brainDir, '.sources', source_id, `${slug}.md`);
-      // LOCAL PATCH bun-Windows: mkdirSync({recursive:true}) throws EEXIST when dir exists
-      { const _d = dirname(filePath); if (!existsSync(_d)) mkdirSync(_d, { recursive: true }); }
+      mkdirSync(dirname(filePath), { recursive: true });
       writeFileSync(filePath, md, 'utf8');
       count++;
     } catch (e) {
@@ -3165,8 +3164,7 @@ async function writeSummaryPage(
   }
   try {
     const filePath = join(brainDir, `${summarySlug}.md`);
-    // LOCAL PATCH bun-Windows EEXIST guard
-    { const _d = dirname(filePath); if (!existsSync(_d)) mkdirSync(_d, { recursive: true }); }
+    mkdirSync(dirname(filePath), { recursive: true });
     writeFileSync(filePath, fullMarkdown, 'utf8');
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
