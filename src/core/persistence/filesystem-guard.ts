@@ -10,6 +10,11 @@ interface FileCapability { roots: string[]; active: boolean; }
 const active = new AsyncLocalStorage<FileCapability>();
 const managedRoots = new Map<string, Map<string, string | undefined>>();
 const datastorePaths = new WeakMap<SqlEngine, string>();
+// LOCAL PATCH (Việt): managed enforcement chỉ khi brain ĐÃ activate (persistence_brain.enabled=true).
+// Claim owner (để put_page/capture có coordinator) nhưng KHÔNG activate → marker .gbrain-owner.json
+// không được biến v-gbrain thành managed root; legacy sync/dream/enrich phải tiếp tục ghi được.
+// Nếu sau này activate writer thì BỎ vá này.
+let brainEnabled: boolean | null = null;
 export function managedFilesystemDatastorePath(engine: SqlEngine): string | undefined { return datastorePaths.get(engine); }
 /** Record the selected engine path, never a guessed default from ambient config. */
 export async function registerManagedFilesystemEngine(engine: SqlEngine, databasePath?: string): Promise<void> {
@@ -25,6 +30,7 @@ function encloses(root: string, path: string): boolean {
 export async function refreshManagedFilesystemRoots(engine: SqlEngine, databasePath = datastorePaths.get(engine), signal?: AbortSignal): Promise<void> {
   // Mode and epoch come from one snapshot, so roots are never recorded under the epoch of a concurrent deactivation.
   const brain = await readPersistenceBrain(engine, { signal });
+  brainEnabled = brain.enabled === true; // LOCAL PATCH
   const roots = brain.enabled ? await engine.executeRaw<ManagedRootRecord>(`SELECT DISTINCT ON (local_path) * FROM (
       SELECT h.local_path,s.source_id,s.source_incarnation,s.worktree_id,s.topology_generation
       FROM persistence_host_bindings h JOIN persistence_source_bindings s ON s.worktree_id=h.worktree_id WHERE h.host_id=$1::uuid
@@ -42,6 +48,7 @@ export function hasFilesystemPublication(path: string): boolean {
 export interface ManagedFilesystemRoot { root: string; sourceId?: string; evidence: string }
 /** The managed canonical worktree the path is inside (or encloses), with the evidence that marks it. */
 export function managedFilesystemRootFor(path: string): ManagedFilesystemRoot | null {
+  if (brainEnabled !== true) return null; // LOCAL PATCH: chưa activate → không coi là managed root
   const related = (root: string) => encloses(root, path) || encloses(path, root);
   const known = [...registeredManagedRootRecords().map(record => ({ root: record.root, sourceId: record.source_id, evidence: 'managed-root registry' })),
     ...[...managedRoots.values()].flatMap(roots => [...roots].map(([root, sourceId]) => ({ root, sourceId, evidence: 'source binding' })))];

@@ -47,7 +47,12 @@ export async function resolveSyncPersistenceMode(engine: BrainEngine, opts: Sync
   const [source] = await engine.executeRaw<{ claimed: boolean }>(`SELECT
     EXISTS(SELECT 1 FROM persistence_source_bindings WHERE source_id=s.id AND source_incarnation=s.incarnation) AS claimed
     FROM sources s WHERE s.id=$1`, [opts.sourceId ?? 'default']);
-  if (source?.claimed) throw await preActivationClaimRefusal(engine, opts.sourceId ?? 'default');
+  if (source?.claimed) {
+    // LOCAL PATCH (Việt): claim-không-activate trên brain Postgres 1 máy → legacy sync như 0.51.6
+    // (0.56.2+ chặn). Bỏ vá này nếu activate writer; GBRAIN_STRICT_CLAIMED_SYNC=1 bật lại hành vi upstream.
+    if (process.env.GBRAIN_STRICT_CLAIMED_SYNC !== '1') return false; // LOCAL PATCH
+    throw await preActivationClaimRefusal(engine, opts.sourceId ?? 'default');
+  }
   return false;
 }
 /**
