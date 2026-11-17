@@ -211,3 +211,69 @@ describe('dream-cycle summary provenance counts (#6642)', () => {
     }
   });
 });
+
+// local-patch: synthesize runs several times a day but the summary is per date. A later same-day run used to
+// rebuild the summary from its own writtenSlugs only, dropping the earlier runs' links (orphaned dream pages).
+describe('dream-cycle summary same-day merge (local-patch)', () => {
+  let engine: PGLiteEngine;
+  beforeAll(async () => {
+    engine = new PGLiteEngine();
+    await engine.connect({});
+    await engine.initSchema();
+  });
+  afterAll(async () => {
+    await engine.disconnect();
+  });
+  beforeEach(async () => {
+    await resetPgliteState(engine);
+  });
+
+  const date = '2026-11-17';
+  const summarySlug = `dream-cycle-summaries/${date}`;
+  async function dreamPage(slug: string, cycleDate: string) {
+    await engine.putPage(slug, { type: 'note', title: slug, compiled_truth: 'body', frontmatter: { dream_generated: true } });
+    await __testing.stampDreamProvenance(engine, [{ slug, source_id: 'default' }], cycleDate);
+  }
+
+  test('a second same-day run keeps the first run links, adds same-day dream pages, drops dead links', async () => {
+    const brainDir = mkdtempSync(join(tmpdir(), 'gbrain-dream-summary-merge-'));
+    try {
+      await dreamPage('wiki/a', date);
+      await dreamPage('wiki/b', date);
+      await dreamPage('wiki/gone', date);
+      await writeSummaryPage(engine, brainDir, summarySlug, date, ['wiki/a', 'wiki/b', 'wiki/gone'], [{ jobId: 1, status: 'completed' }]);
+      await engine.deletePage('wiki/gone');
+      // A page first written today whose run's summary was lost, and an older page this run rewrote.
+      await dreamPage('wiki/lost', date);
+      await dreamPage('wiki/older', '2026-11-01');
+      await dreamPage('wiki/c', date);
+      await dreamPage('wiki/other-day', '2026-11-16');
+
+      await writeSummaryPage(engine, brainDir, summarySlug, date, ['wiki/c', 'wiki/older'], [{ jobId: 2, status: 'completed' }]);
+      const body = (await engine.getPage(summarySlug))!.compiled_truth;
+      for (const slug of ['wiki/a', 'wiki/b', 'wiki/c', 'wiki/lost', 'wiki/older']) expect(body).toContain(`[[${slug}]]`);
+      expect(body).not.toContain('[[wiki/gone]]');
+      expect(body).not.toContain('[[wiki/other-day]]');
+      expect(body).not.toContain(`[[${summarySlug}]]`);
+      expect(body).toContain('**Pages written:** 5.');
+      expect(body).toContain('**Latest run:** 2 page(s)');
+    } finally {
+      rmSync(brainDir, { recursive: true, force: true });
+    }
+  });
+
+  test('dream.synthesize.summary_link_limit raises the cap', async () => {
+    const brainDir = mkdtempSync(join(tmpdir(), 'gbrain-dream-summary-limit-'));
+    try {
+      const slugs = Array.from({ length: 25 }, (_, i) => `wiki/out-${String(i).padStart(2, '0')}`);
+      await engine.setConfig('dream.synthesize.summary_link_limit', '150');
+      await writeSummaryPage(engine, brainDir, summarySlug, date, slugs, [{ jobId: 1, status: 'completed' }]);
+      const body = (await engine.getPage(summarySlug))!.compiled_truth;
+      expect(body).toContain('## Pages');
+      expect(body).not.toContain('## Page sample');
+      expect(body.match(/\[\[/g)).toHaveLength(25);
+    } finally {
+      rmSync(brainDir, { recursive: true, force: true });
+    }
+  });
+});

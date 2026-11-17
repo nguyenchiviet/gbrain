@@ -1572,6 +1572,8 @@ export const KNOWN_CONFIG_KEYS: readonly string[] = [
   'dream.synthesize.max_chunks_per_transcript',
   // #2415: top-level namespace for synthesize/patterns output (default 'wiki').
   'dream.synthesize.output_root',
+  // local-patch: summary wikilink cap (default 20, #4337) — see cycle/synthesize.ts resolveSummaryLinkLimit.
+  'dream.synthesize.summary_link_limit',
   'dream.synthesize.subagent_timeout_ms',
   'dream.synthesize.subagent_wait_timeout_ms',
   // #4152 two-stage cascade: subagent turn budget (default 16) + opt-in

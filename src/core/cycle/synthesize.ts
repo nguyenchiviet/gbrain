@@ -3063,6 +3063,53 @@ export function renderPageToMarkdown(page: Page, tags: string[]): string {
  * provenance (`dream_generated` + `dream_cycle_date` frontmatter).
  */
 const SUMMARY_LINK_SAMPLE_LIMIT = 20;
+/** local-patch: per-brain override of SUMMARY_LINK_SAMPLE_LIMIT (positive integer; absent/invalid → 20). */
+const SUMMARY_LINK_LIMIT_KEY = 'dream.synthesize.summary_link_limit';
+
+async function resolveSummaryLinkLimit(engine: BrainEngine): Promise<number> {
+  try {
+    const n = Number.parseInt((await engine.getConfig(SUMMARY_LINK_LIMIT_KEY))?.trim() ?? '', 10);
+    return Number.isFinite(n) && n > 0 ? n : SUMMARY_LINK_SAMPLE_LIMIT;
+  } catch {
+    return SUMMARY_LINK_SAMPLE_LIMIT;
+  }
+}
+
+const SUMMARY_WIKILINK_RE = /\[\[([^|\]#\n[]+?)(?:#[^|\]]*?)?(?:\|[^\]]+?)?\]\]/g;
+
+/**
+ * local-patch: the summary is per DATE but synthesize runs several times a day; rebuilding it from one run's
+ * `writtenSlugs` dropped every link an earlier same-day run wrote (and hand-added lines), leaving dream pages with
+ * no inbound link. The day's link set is: this run's slugs ∪ links already on the summary ∪ live dream pages
+ * first written on this date. Links to pages that no longer exist are dropped.
+ */
+async function sameDaySummarySlugs(
+  engine: BrainEngine,
+  sourceId: string,
+  summarySlug: string,
+  summaryDate: string,
+  writtenSlugs: string[],
+): Promise<string[]> {
+  const out = new Set(writtenSlugs);
+  try {
+    const snapshot = await engine.readPageSnapshot(summarySlug, { sourceId });
+    const existing = new Set<string>();
+    for (const m of (snapshot?.page.compiled_truth ?? '').matchAll(SUMMARY_WIKILINK_RE)) {
+      const slug = m[1]!.trim();
+      if (slug && slug !== summarySlug) existing.add(slug);
+    }
+    const rows = await engine.executeRaw<{ slug: string }>(
+      `SELECT slug FROM pages
+        WHERE source_id = $1 AND deleted_at IS NULL AND slug <> $3
+          AND (slug = ANY($4::text[])
+               OR (frontmatter->>'dream_generated' = 'true' AND frontmatter->>'dream_cycle_date' = $2))`,
+      [sourceId, summaryDate, summarySlug, [...existing]]);
+    for (const r of rows) out.add(r.slug);
+  } catch (e) {
+    process.stderr.write(`[dream] summary same-day merge skipped (${e instanceof Error ? e.message : String(e)}); listing this run only\n`);
+  }
+  return [...out].sort();
+}
 
 /**
  * Write the cycle's summary index page: the database row (unmanaged: a single-item `dream_summary` generation bound to
@@ -3086,28 +3133,35 @@ async function writeSummaryPage(
     : (await engine.readPageSnapshot(summarySlug, { sourceId, includeDeleted: true }))?.revision ?? null;
   const completed = childOutcomes.filter(c => c.status === 'completed').length;
   const failed = childOutcomes.length - completed;
+  // local-patch: merge with earlier same-day runs instead of overwriting; link cap is configurable.
+  const runWrittenCount = writtenSlugs.length;
+  writtenSlugs = await sameDaySummarySlugs(engine, sourceId, summarySlug, summaryDate, writtenSlugs);
+  const linkLimit = await resolveSummaryLinkLimit(engine);
 
   const lines: string[] = [];
   lines.push(`# Dream cycle ${summaryDate}`);
   lines.push('');
   lines.push(`**Children:** ${completed} completed, ${failed} failed/timeout.`);
   lines.push(`**Pages written:** ${writtenSlugs.length}.`);
+  if (runWrittenCount !== writtenSlugs.length) {
+    lines.push(`**Latest run:** ${runWrittenCount} page(s) and the children counts above; the other pages were written by earlier runs on ${summaryDate}.`);
+  }
   lines.push('');
   if (writtenSlugs.length > 0) {
     // #4337: deterministic, lexicographically sorted sample — small cycles
-    // stay fully linked; large cycles list exactly SUMMARY_LINK_SAMPLE_LIMIT
+    // stay fully linked; large cycles list exactly the link limit
     // links while keeping exact totals above. The provenance section below
     // names the frontmatter query and what it misses (#6642).
-    const sampledSlugs = [...writtenSlugs].sort().slice(0, SUMMARY_LINK_SAMPLE_LIMIT);
+    const sampledSlugs = [...writtenSlugs].sort().slice(0, linkLimit);
     lines.push(
-      writtenSlugs.length > SUMMARY_LINK_SAMPLE_LIMIT
+      writtenSlugs.length > linkLimit
         ? `## Page sample (${sampledSlugs.length} of ${writtenSlugs.length})`
         : '## Pages',
       '',
       ...sampledSlugs.map(slug => `- [[${slug}]]`),
       '',
     );
-    if (writtenSlugs.length > SUMMARY_LINK_SAMPLE_LIMIT) {
+    if (writtenSlugs.length > linkLimit) {
       lines.push(...await summaryProvenanceLines(engine, { sourceId, cycleDate: summaryDate, summarySlug, writtenSlugs }));
     }
   }
